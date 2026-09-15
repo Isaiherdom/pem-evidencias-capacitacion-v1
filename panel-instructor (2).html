@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
   :root{
     --ink:#12181B; --ink-soft:#4A555B; --paper:#EFF1EE; --panel:#FFFFFF; --line:#D9DCD6;
@@ -62,6 +63,31 @@
   .pdf-ready{ display:inline-block; margin-top:8px; font-size:12.5px; font-weight:600; color:var(--teal); text-decoration:none; border:1px solid var(--teal); border-radius:7px; padding:6px 12px; }
   .status-line{ font-size:12px; color:var(--ink-soft); margin-top:8px; }
   .error-box{ background:#FBEEED; border:1px solid #E7C6C3; color:var(--red); border-radius:8px; padding:12px 14px; font-size:13px; margin-bottom:16px; }
+
+  .create-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; margin-bottom:28px;
+  }
+  .create-card h3{font-size:15px; margin:0 0 4px;}
+  .create-card .sub{font-size:12.5px; color:var(--ink-soft); margin:0 0 16px;}
+  .create-form{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .create-form .full{grid-column:1/-1;}
+  .create-form label{display:block; font-size:12px; font-weight:600; color:var(--ink-soft); margin-bottom:4px;}
+  .create-form input, .create-form select{
+    width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:7px; font-family:inherit; font-size:13.5px; background:#FBFBFA;
+  }
+  .create-form input:focus, .create-form select:focus{ outline:none; border-color:var(--amber); background:#fff; }
+
+  .link-box{
+    margin-top:14px; padding-top:14px; border-top:1px solid var(--line);
+    display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;
+  }
+  .link-box canvas{ border:1px solid var(--line); border-radius:8px; }
+  .link-box .urlrow{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .link-box input.urlfield{
+    flex:1; min-width:220px; padding:8px 10px; border:1px solid var(--line); border-radius:7px; background:#FBFBFA;
+    font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:var(--ink-soft);
+  }
+  .link-toggle{ font-size:12.5px; color:var(--teal); text-decoration:underline; cursor:pointer; background:none; border:none; padding:0; font-family:inherit; }
 </style>
 </head>
 <body>
@@ -72,9 +98,11 @@
 const SUPABASE_URL = "https://wrhrqlnuiaowymyflpwn.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyaHJxbG51aWFvd3lteWZscHduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MjMzMTEsImV4cCI6MjEwNDk5OTMxMX0.SELZqmZUWjkFtXPtMqByvQSC_obKuTlwBeL1PN0GDpc";
 const supa = window.supabase.createClient(SUPABASE_URL, ANON_KEY);
+const REGISTRO_URL = new URL('prototipo-evidencias-conectado.html', window.location.href).href;
 
 const app = document.getElementById('app');
 let session = null;
+let miPerfil = null;
 
 async function init(){
   const { data } = await supa.auth.getSession();
@@ -127,14 +155,62 @@ async function renderPanel(){
       <div class="user">${correo} <button onclick="logout()">Cerrar sesión</button></div>
     </div>
     <div class="wrap">
+
+      <div class="create-card">
+        <h3>Crear nuevo evento</h3>
+        <p class="sub">Al crearlo se genera automáticamente el link y el QR de registro para compartir.</p>
+        <div id="createArea"><div class="empty" style="padding:20px;">Cargando tu perfil…</div></div>
+      </div>
+
       <h2>Tus eventos</h2>
       <p class="subhead">Eventos donde eres instructor, o todos los de tu organización si eres administrador.</p>
       <div id="eventsList"><div class="empty">Cargando…</div></div>
     </div>`;
 
+  const { data: perfil, error: perfilErr } = await supa
+    .from('profiles')
+    .select('id, is_admin, organizacion_id')
+    .eq('id', session.user.id)
+    .maybeSingle();
+  miPerfil = perfil;
+
+  const createArea = document.getElementById('createArea');
+  if(!perfil || !perfil.organizacion_id){
+    createArea.innerHTML = `<p class="status-line">Tu cuenta todavía no tiene una organización asignada — pídele a Isaí que te la asigne para poder crear eventos.</p>`;
+  } else {
+    createArea.innerHTML = `
+      <div class="create-form">
+        <div>
+          <label>Nombre del evento</label>
+          <input id="nf-nombre" placeholder="Ej. Inducción ISO 45001 — Base Reynosa">
+        </div>
+        <div>
+          <label>Tipo</label>
+          <select id="nf-tipo">
+            <option value="presencial">Presencial</option>
+            <option value="teams">Reunión Teams</option>
+          </select>
+        </div>
+        <div>
+          <label>Fecha</label>
+          <input id="nf-fecha" type="date">
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+          <button class="btn btn-primary" style="width:100%" onclick="crearEvento()">Crear evento</button>
+        </div>
+      </div>
+      <div id="createError"></div>
+      <div id="createResult"></div>`;
+    document.getElementById('nf-fecha').value = new Date().toISOString().slice(0,10);
+  }
+
+  await cargarEventos();
+}
+
+async function cargarEventos(){
   const { data: eventos, error } = await supa
     .from('eventos')
-    .select('id, nombre, tipo, fecha, estado, reportes_pdf(estado, storage_path)')
+    .select('id, nombre, tipo, fecha, estado, token_acceso, reportes_pdf(estado, storage_path)')
     .order('fecha', { ascending: false });
 
   const listEl = document.getElementById('eventsList');
@@ -146,7 +222,7 @@ async function renderPanel(){
   }
 
   if(!eventos || eventos.length === 0){
-    listEl.innerHTML = `<div class="empty">No ves ningún evento todavía. Esto puede ser porque tu cuenta aún no está marcada como instructor o admin — pídele a Isaí que te asigne permisos.</div>`;
+    listEl.innerHTML = `<div class="empty">Todavía no tienes eventos. Crea el primero arriba.</div>`;
     return;
   }
 
@@ -165,17 +241,95 @@ async function renderPanel(){
     } else {
       accion = `<button class="btn btn-ghost" onclick="generarPdf('${ev.id}')">Generar PDF</button>`;
     }
+    const linkToggle = ev.estado === 'abierto'
+      ? `<div><button class="link-toggle" onclick="toggleQr('${ev.id}', '${ev.token_acceso}')">Ver link / QR de registro</button></div>`
+      : '';
     return `
-      <div class="event-card">
-        <div class="info">
-          <div class="nombre">${ev.nombre}</div>
-          <div class="meta">${ev.tipo === 'teams' ? 'Reunión Teams' : 'Presencial'} · ${ev.fecha} ·
-            <span class="badge ${ev.estado === 'abierto' ? 'badge-abierto' : 'badge-cerrado'}">${ev.estado}</span>
+      <div class="event-card" style="flex-direction:column; align-items:stretch;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
+          <div class="info">
+            <div class="nombre">${ev.nombre}</div>
+            <div class="meta">${ev.tipo === 'teams' ? 'Reunión Teams' : 'Presencial'} · ${ev.fecha} ·
+              <span class="badge ${ev.estado === 'abierto' ? 'badge-abierto' : 'badge-cerrado'}">${ev.estado}</span>
+            </div>
           </div>
+          <div id="accion-${ev.id}">${accion}</div>
         </div>
-        <div id="accion-${ev.id}">${accion}</div>
+        ${linkToggle}
+        <div id="qr-${ev.id}"></div>
       </div>`;
   }).join('');
+}
+
+function toggleQr(eventoId, token){
+  const box = document.getElementById(`qr-${eventoId}`);
+  if(box.innerHTML){ box.innerHTML = ''; return; }
+  const url = `${REGISTRO_URL}?token=${token}`;
+  box.innerHTML = `
+    <div class="link-box">
+      <div style="flex:1; min-width:220px;">
+        <div class="urlrow">
+          <input class="urlfield" readonly value="${url}" id="urlfield-${eventoId}">
+          <button class="btn btn-ghost" onclick="copiarLink('${eventoId}')">Copiar</button>
+        </div>
+        <p class="status-line">Comparte este link o el QR con los asistentes — no necesitan cuenta.</p>
+      </div>
+      <canvas id="qrcanvas-${eventoId}"></canvas>
+    </div>`;
+  QRCode.toCanvas(document.getElementById(`qrcanvas-${eventoId}`), url, { width: 130, margin: 1 });
+}
+
+function copiarLink(eventoId){
+  const field = document.getElementById(`urlfield-${eventoId}`);
+  field.select();
+  navigator.clipboard.writeText(field.value);
+}
+
+async function crearEvento(){
+  const nombre = document.getElementById('nf-nombre').value.trim();
+  const tipo = document.getElementById('nf-tipo').value;
+  const fecha = document.getElementById('nf-fecha').value;
+  const errBox = document.getElementById('createError');
+  errBox.innerHTML = '';
+
+  if(!nombre || !fecha){
+    errBox.innerHTML = `<div class="error-box">Ponle nombre y fecha al evento.</div>`;
+    return;
+  }
+
+  const { data, error } = await supa
+    .from('eventos')
+    .insert({
+      organizacion_id: miPerfil.organizacion_id,
+      nombre, tipo, fecha,
+      instructor_id: session.user.id,
+      creado_por: session.user.id,
+    })
+    .select('id, nombre, token_acceso')
+    .single();
+
+  if(error){
+    errBox.innerHTML = `<div class="error-box">No se pudo crear el evento: ${error.message}</div>`;
+    return;
+  }
+
+  document.getElementById('nf-nombre').value = '';
+  const url = `${REGISTRO_URL}?token=${data.token_acceso}`;
+  const resultBox = document.getElementById('createResult');
+  resultBox.innerHTML = `
+    <div class="link-box" style="margin-top:16px;">
+      <div style="flex:1; min-width:220px;">
+        <p class="status-line" style="margin-bottom:8px;"><strong style="color:var(--teal)">Evento creado:</strong> ${data.nombre}</p>
+        <div class="urlrow">
+          <input class="urlfield" readonly value="${url}" id="newlink">
+          <button class="btn btn-ghost" onclick="document.getElementById('newlink').select(); navigator.clipboard.writeText('${url}')">Copiar</button>
+        </div>
+      </div>
+      <canvas id="newqr"></canvas>
+    </div>`;
+  QRCode.toCanvas(document.getElementById('newqr'), url, { width: 130, margin: 1 });
+
+  await cargarEventos();
 }
 
 async function cerrarYGenerar(eventoId){

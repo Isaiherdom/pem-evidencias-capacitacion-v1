@@ -156,7 +156,16 @@
 // ---- Conexión real a tu proyecto Supabase ----
 const SUPABASE_URL = "https://wrhrqlnuiaowymyflpwn.supabase.co";
 const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyaHJxbG51aWFvd3lteWZscHduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MjMzMTEsImV4cCI6MjEwNDk5OTMxMX0.SELZqmZUWjkFtXPtMqByvQSC_obKuTlwBeL1PN0GDpc";
-const EVENTO_TOKEN = "ogzBGlwGKEcc"; // token real del evento "Demo en vivo" creado para esta prueba
+const EVENTO_TOKEN = new URLSearchParams(window.location.search).get('token');
+
+if (!EVENTO_TOKEN) {
+  document.getElementById('screen').innerHTML = `
+    <div class="landing">
+      <h2>Falta el código del evento</h2>
+      <p>Este link no incluye el código de registro. Pide al instructor el link completo (o escanea el QR de la capacitación) — debe verse como<br><code>...conectado.html?token=XXXXXXXX</code></p>
+    </div>`;
+  throw new Error("Falta el parámetro token en la URL");
+}
 
 const screen = document.getElementById('screen');
 const log = document.getElementById('log');
