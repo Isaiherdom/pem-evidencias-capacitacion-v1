@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel del Instructor — Evidencias de Capacitación</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --ink:#12181B; --ink-soft:#4A555B; --paper:#EFF1EE; --panel:#FFFFFF; --line:#D9DCD6;
+    --amber:#C1580A; --amber-dark:#9C4508; --teal:#1B6F5C; --teal-soft:#E4F0EC; --red:#B3261E;
+    --shadow: 0 1px 2px rgba(18,24,27,0.06), 0 8px 24px rgba(18,24,27,0.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{ background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans', sans-serif; min-height:100vh; -webkit-font-smoothing:antialiased; }
+  .mono{font-family:'IBM Plex Mono', monospace;}
+
+  .topbar{ background:var(--ink); color:#F2F1ED; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .topbar .brand{font-size:15px; font-weight:600;}
+  .topbar .user{font-size:12.5px; color:#C9CFC6; display:flex; align-items:center; gap:12px;}
+  .topbar .user button{ background:none; border:1px solid #3A4448; color:#C9CFC6; border-radius:7px; padding:6px 12px; font-family:inherit; font-size:12px; cursor:pointer; }
+  .topbar .user button:hover{border-color:#6B7A80;}
+
+  .wrap{ max-width:760px; margin:0 auto; padding:48px 24px 64px; }
+
+  /* Login screen */
+  .login-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow);
+    padding:48px 36px; text-align:center; max-width:420px; margin:80px auto 0;
+  }
+  .login-card h1{font-size:20px; margin:0 0 8px;}
+  .login-card p{font-size:13.5px; color:var(--ink-soft); margin:0 0 28px; line-height:1.5;}
+  .btn-ms{
+    display:inline-flex; align-items:center; gap:10px; background:var(--ink); color:#fff; border:none;
+    border-radius:9px; padding:13px 22px; font-family:inherit; font-size:14px; font-weight:600; cursor:pointer; width:100%;
+    justify-content:center;
+  }
+  .btn-ms:hover{background:#232B2F;}
+  .btn-ms svg{width:16px; height:16px;}
+
+  /* Panel */
+  h2{font-size:19px; margin:0 0 4px;}
+  .subhead{font-size:13px; color:var(--ink-soft); margin:0 0 24px;}
+  .event-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:14px;
+    display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  }
+  .event-card .info .nombre{font-size:14.5px; font-weight:600; margin-bottom:3px;}
+  .event-card .info .meta{font-size:12px; color:var(--ink-soft);}
+  .badge{ font-size:11px; font-weight:600; padding:3px 9px; border-radius:6px; }
+  .badge-abierto{background:var(--teal-soft); color:var(--teal);}
+  .badge-cerrado{background:#EFEAE2; color:var(--ink-soft);}
+  .btn{ appearance:none; border:none; border-radius:8px; padding:10px 16px; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; }
+  .btn-primary{background:var(--amber); color:#fff;}
+  .btn-primary:hover{background:var(--amber-dark);}
+  .btn-primary:disabled{background:#D8CFC4; color:#8C8378; cursor:not-allowed;}
+  .btn-ghost{background:transparent; color:var(--ink-soft); border:1px solid var(--line);}
+  .empty{ text-align:center; padding:60px 20px; color:#A7ACA7; font-size:13.5px; }
+  .pdf-ready{ display:inline-block; margin-top:8px; font-size:12.5px; font-weight:600; color:var(--teal); text-decoration:none; border:1px solid var(--teal); border-radius:7px; padding:6px 12px; }
+  .status-line{ font-size:12px; color:var(--ink-soft); margin-top:8px; }
+  .error-box{ background:#FBEEED; border:1px solid #E7C6C3; color:var(--red); border-radius:8px; padding:12px 14px; font-size:13px; margin-bottom:16px; }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+const SUPABASE_URL = "https://wrhrqlnuiaowymyflpwn.supabase.co";
+const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyaHJxbG51aWFvd3lteWZscHduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MjMzMTEsImV4cCI6MjEwNDk5OTMxMX0.SELZqmZUWjkFtXPtMqByvQSC_obKuTlwBeL1PN0GDpc";
+const supa = window.supabase.createClient(SUPABASE_URL, ANON_KEY);
+
+const app = document.getElementById('app');
+let session = null;
+
+async function init(){
+  const { data } = await supa.auth.getSession();
+  session = data.session;
+  supa.auth.onAuthStateChange((_event, s) => { session = s; render(); });
+  render();
+}
+
+function render(){
+  if(!session){ renderLogin(); return; }
+  renderPanel();
+}
+
+function renderLogin(){
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="brand">Evidencias de Capacitación — PEM</div>
+      <div class="user"></div>
+    </div>
+    <div class="wrap">
+      <div class="login-card">
+        <h1>Panel del instructor</h1>
+        <p>Inicia sesión con tu cuenta de Microsoft de PEM para ver tus eventos, cerrarlos y generar el reporte de evidencias.</p>
+        <button class="btn-ms" onclick="login()">
+          <svg viewBox="0 0 21 21"><rect width="9" height="9" x="1" y="1" fill="#f25022"/><rect width="9" height="9" x="11" y="1" fill="#7fba00"/><rect width="9" height="9" x="1" y="11" fill="#00a4ef"/><rect width="9" height="9" x="11" y="11" fill="#ffb900"/></svg>
+          Iniciar sesión con Microsoft
+        </button>
+      </div>
+    </div>`;
+}
+
+async function login(){
+  await supa.auth.signInWithOAuth({
+    provider: 'azure',
+    options: { scopes: 'email', redirectTo: window.location.href }
+  });
+}
+
+async function logout(){
+  await supa.auth.signOut();
+  session = null;
+  render();
+}
+
+async function renderPanel(){
+  const correo = session.user.email || '';
+  app.innerHTML = `
+    <div class="topbar">
+      <div class="brand">Evidencias de Capacitación — PEM</div>
+      <div class="user">${correo} <button onclick="logout()">Cerrar sesión</button></div>
+    </div>
+    <div class="wrap">
+      <h2>Tus eventos</h2>
+      <p class="subhead">Eventos donde eres instructor, o todos los de tu organización si eres administrador.</p>
+      <div id="eventsList"><div class="empty">Cargando…</div></div>
+    </div>`;
+
+  const { data: eventos, error } = await supa
+    .from('eventos')
+    .select('id, nombre, tipo, fecha, estado, reportes_pdf(estado, storage_path)')
+    .order('fecha', { ascending: false });
+
+  const listEl = document.getElementById('eventsList');
+
+  if(error){
+    listEl.innerHTML = `<div class="error-box">No se pudieron cargar tus eventos: ${error.message}<br><br>
+      Si tu cuenta acaba de iniciar sesión por primera vez, es probable que aún no tengas permisos de instructor/admin asignados — pídele a Isaí que te los asigne.</div>`;
+    return;
+  }
+
+  if(!eventos || eventos.length === 0){
+    listEl.innerHTML = `<div class="empty">No ves ningún evento todavía. Esto puede ser porque tu cuenta aún no está marcada como instructor o admin — pídele a Isaí que te asigne permisos.</div>`;
+    return;
+  }
+
+  listEl.innerHTML = eventos.map(ev => {
+    const reporte = Array.isArray(ev.reportes_pdf) ? ev.reportes_pdf[0] : ev.reportes_pdf;
+    let accion = '';
+    if(ev.estado === 'abierto'){
+      accion = `<button class="btn btn-primary" onclick="cerrarYGenerar('${ev.id}')">Cerrar evento y generar PDF</button>`;
+    } else if(reporte && reporte.estado === 'listo'){
+      accion = `<a class="pdf-ready" href="#" onclick="descargarPdf('${reporte.storage_path}'); return false;">Descargar PDF</a>`;
+    } else if(reporte && reporte.estado === 'procesando'){
+      accion = `<span class="status-line">Generando PDF…</span>`;
+    } else if(reporte && reporte.estado === 'error'){
+      accion = `<button class="btn btn-ghost" onclick="generarPdf('${ev.id}')">Reintentar generar PDF</button>`;
+    } else {
+      accion = `<button class="btn btn-ghost" onclick="generarPdf('${ev.id}')">Generar PDF</button>`;
+    }
+    return `
+      <div class="event-card">
+        <div class="info">
+          <div class="nombre">${ev.nombre}</div>
+          <div class="meta">${ev.tipo === 'teams' ? 'Reunión Teams' : 'Presencial'} · ${ev.fecha} ·
+            <span class="badge ${ev.estado === 'abierto' ? 'badge-abierto' : 'badge-cerrado'}">${ev.estado}</span>
+          </div>
+        </div>
+        <div id="accion-${ev.id}">${accion}</div>
+      </div>`;
+  }).join('');
+}
+
+async function cerrarYGenerar(eventoId){
+  const cont = document.getElementById(`accion-${eventoId}`);
+  cont.innerHTML = `<span class="status-line">Cerrando evento…</span>`;
+  try{
+    const { error: rpcErr } = await supa.rpc('cerrar_evento', { p_evento_id: eventoId });
+    if(rpcErr) throw rpcErr;
+    await generarPdf(eventoId);
+  }catch(err){
+    cont.innerHTML = `<span class="status-line" style="color:var(--red)">Error: ${err.message}</span>`;
+  }
+}
+
+async function generarPdf(eventoId){
+  const cont = document.getElementById(`accion-${eventoId}`);
+  cont.innerHTML = `<span class="status-line">Generando PDF…</span>`;
+  try{
+    const { data, error } = await supa.functions.invoke('generar-pdf-evento', { body: { evento_id: eventoId } });
+    if(error) throw error;
+    cont.innerHTML = `<a class="pdf-ready" href="#" onclick="descargarPdf('${data.storage_path}'); return false;">Descargar PDF</a>`;
+  }catch(err){
+    cont.innerHTML = `<span class="status-line" style="color:var(--red)">Error generando el PDF: ${err.message}</span>`;
+  }
+}
+
+async function descargarPdf(storagePath){
+  const { data, error } = await supa.storage.from('evidencias').createSignedUrl(storagePath, 60);
+  if(error){ alert('No se pudo generar el link de descarga: ' + error.message); return; }
+  window.open(data.signedUrl, '_blank');
+}
+
+init();
+</script>
+
+</body>
+</html>

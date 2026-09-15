@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evidencia de Asistencia — Conectado a Supabase</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#12181B; --ink-soft:#4A555B; --paper:#EFF1EE; --panel:#FFFFFF; --line:#D9DCD6;
+    --amber:#C1580A; --amber-dark:#9C4508; --teal:#1B6F5C; --teal-soft:#E4F0EC; --red:#B3261E;
+    --shadow: 0 1px 2px rgba(18,24,27,0.06), 0 8px 24px rgba(18,24,27,0.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{ background:var(--paper); color:var(--ink); font-family:'IBM Plex Sans', sans-serif; min-height:100vh; -webkit-font-smoothing:antialiased; }
+  .mono{font-family:'IBM Plex Mono', monospace;}
+
+  .topbar{ background:var(--ink); color:#F2F1ED; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .topbar .evento{display:flex; flex-direction:column; gap:2px;}
+  .topbar .evento .label{font-size:11px; letter-spacing:.04em; color:#9BA6A3;}
+  .topbar .evento .nombre{font-size:16px; font-weight:600;}
+  .topbar .meta{font-family:'IBM Plex Mono', monospace; font-size:12px; color:#C9CFC6; display:flex; gap:18px; flex-wrap:wrap;}
+
+  .banner{background:var(--teal-soft); color:var(--teal); font-size:12.5px; text-align:center; padding:8px 16px; font-weight:600;}
+  .banner-warn{background:#FBEEED; color:var(--red);}
+
+  .layout{ max-width:1180px; margin:0 auto; padding:32px 24px 64px; display:grid; grid-template-columns:400px 1fr; gap:32px; align-items:start; }
+  @media (max-width:860px){ .layout{grid-template-columns:1fr; padding:20px 16px 48px;} }
+
+  .device{ background:var(--panel); border:1px solid var(--line); border-radius:22px; box-shadow:var(--shadow); overflow:hidden; position:sticky; top:24px; }
+  .device-bar{height:34px; background:#161C1F; display:flex; align-items:center; justify-content:center;}
+  .device-bar::after{content:""; width:56px; height:5px; border-radius:3px; background:#3A4448;}
+  .device-screen{padding:22px 22px 26px; min-height:560px; display:flex; flex-direction:column;}
+
+  .progress{display:flex; gap:6px; margin-bottom:22px;}
+  .progress .seg{flex:1; height:3px; background:var(--line); border-radius:2px; overflow:hidden;}
+  .progress .seg i{display:block; height:100%; width:0%; background:var(--amber); transition:width .35s ease;}
+  .step-label{font-size:11px; letter-spacing:.04em; color:var(--ink-soft); margin-bottom:6px;}
+  .step-title{font-size:19px; font-weight:700; margin:0 0 18px;}
+
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12.5px; font-weight:600; color:var(--ink-soft); margin-bottom:5px;}
+  .field input{ width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:14.5px; background:#FBFBFA; color:var(--ink); }
+  .field input:focus{outline:none; border-color:var(--amber); background:#fff;}
+
+  .btn{ appearance:none; border:none; border-radius:9px; padding:12px 18px; font-family:inherit; font-size:14.5px; font-weight:600; cursor:pointer; transition:transform .08s ease, opacity .15s ease; }
+  .btn:active{transform:scale(.98);}
+  .btn-primary{background:var(--amber); color:#fff;}
+  .btn-primary:hover{background:var(--amber-dark);}
+  .btn-primary:disabled{background:#D8CFC4; color:#8C8378; cursor:not-allowed;}
+  .btn-ghost{background:transparent; color:var(--ink-soft); border:1px solid var(--line);}
+  .btn-ghost:hover{border-color:var(--ink-soft);}
+  .btn-row{display:flex; gap:10px; margin-top:auto; padding-top:18px;}
+  .btn-row .btn{flex:1;}
+
+  .sig-wrap{border:1px dashed var(--line); border-radius:10px; background:#FBFBFA; position:relative; touch-action:none;}
+  .sig-wrap canvas{display:block; width:100%; height:190px; border-radius:10px;}
+  .sig-hint{position:absolute; bottom:8px; left:0; right:0; text-align:center; font-size:12px; color:#A7ACA7; pointer-events:none;}
+  .sig-clear{margin-top:10px; font-size:12.5px; color:var(--ink-soft); background:none; border:none; text-decoration:underline; cursor:pointer; padding:0;}
+
+  .cam-wrap{border-radius:10px; overflow:hidden; background:#0E1315; aspect-ratio:4/3; display:flex; align-items:center; justify-content:center; position:relative;}
+  .cam-wrap video, .cam-wrap img{width:100%; height:100%; object-fit:cover;}
+  .cam-fallback{color:#9BA6A3; font-size:13px; text-align:center; padding:24px; line-height:1.5;}
+  .cam-shutter{position:absolute; bottom:14px; left:50%; transform:translateX(-50%); width:56px; height:56px; border-radius:50%; background:#fff; border:4px solid rgba(255,255,255,.4); cursor:pointer;}
+  .cam-note{font-size:12px; color:var(--ink-soft); margin-top:10px; line-height:1.5;}
+  .assisted-link{display:inline-block; margin-top:10px; font-size:12.5px; color:var(--teal); text-decoration:underline; cursor:pointer;}
+
+  .confirm-badge{width:52px; height:52px; border-radius:50%; background:var(--teal-soft); color:var(--teal); display:flex; align-items:center; justify-content:center; font-size:26px; margin-bottom:14px;}
+  .confirm-card{border:1px solid var(--line); border-radius:10px; padding:14px; background:#FBFBFA; display:flex; gap:12px; align-items:center; margin-bottom:14px;}
+  .confirm-card img.foto{width:54px; height:54px; border-radius:8px; object-fit:cover; background:#DDD;}
+  .confirm-card .info .nombre{font-weight:600; font-size:14.5px;}
+  .confirm-card .info .empresa{font-size:12.5px; color:var(--ink-soft);}
+  .confirm-folio{font-size:12px; color:var(--ink-soft); margin-bottom:4px;}
+  .confirm-real{display:inline-block; margin-bottom:10px; font-size:11px; font-weight:600; color:var(--teal); background:var(--teal-soft); padding:3px 8px; border-radius:6px;}
+  .confirm-sig{border:1px solid var(--line); border-radius:8px; padding:8px; background:#fff; margin-bottom:16px;}
+  .confirm-sig img{display:block; width:100%; height:60px; object-fit:contain;}
+
+  .landing{text-align:center; padding-top:18px;}
+  .qr-box{ width:150px; height:150px; margin:0 auto 20px; border-radius:12px;
+    background: repeating-linear-gradient(0deg, #12181B 0 6px, transparent 6px 12px), repeating-linear-gradient(90deg, #12181B 0 6px, transparent 6px 12px);
+    background-blend-mode:multiply; background-color:#fff; border:1px solid var(--line); opacity:.9; }
+  .landing h2{font-size:18px; margin:0 0 6px;}
+  .landing p{font-size:13.5px; color:var(--ink-soft); margin:0 0 22px; line-height:1.5;}
+
+  .error-box{ background:#FBEEED; border:1px solid #E7C6C3; color:var(--red); border-radius:8px; padding:12px 14px; font-size:13px; margin-bottom:14px; line-height:1.5; }
+
+  .spinner{ width:16px; height:16px; border:2px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; display:inline-block; animation:spin .7s linear infinite; vertical-align:-3px; margin-right:8px; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .panel-title{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:6px;}
+  .panel-title h3{font-size:16px; margin:0;}
+  .panel-title .count{font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--teal); font-weight:600;}
+  .panel-sub{font-size:13px; color:var(--ink-soft); margin:0 0 16px; line-height:1.5;}
+  .log{border:1px solid var(--line); border-radius:12px; background:var(--panel); overflow:hidden;}
+  .log-empty{padding:40px 24px; text-align:center; color:#A7ACA7; font-size:13.5px; line-height:1.6;}
+  .log-row{display:flex; align-items:center; gap:12px; padding:12px 16px; border-bottom:1px solid #F0F0EC; animation:slidein .3s ease;}
+  .log-row:last-child{border-bottom:none;}
+  @keyframes slidein{ from{opacity:0; transform:translateY(-6px);} to{opacity:1; transform:translateY(0);} }
+  .log-row img{width:36px; height:36px; border-radius:8px; object-fit:cover; background:#E7E5DF; flex-shrink:0;}
+  .log-row .info{flex:1; min-width:0;}
+  .log-row .info .n{font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .log-row .info .e{font-size:12px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .log-row .right{text-align:right; flex-shrink:0;}
+  .log-row .right .hora{font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:var(--ink-soft);}
+  .log-row .right .ok{font-size:11px; color:var(--teal); font-weight:600;}
+
+  .info-box{ margin-top:18px; border:1px solid var(--line); border-radius:12px; background:var(--panel); padding:16px; font-size:12.5px; color:var(--ink-soft); line-height:1.6; }
+  .info-box b{color:var(--ink);}
+  .foot-note{margin-top:20px; font-size:12.5px; color:var(--ink-soft); line-height:1.6; border-left:2px solid var(--line); padding-left:12px;}
+</style>
+</head>
+<body>
+
+<div class="banner">Conectado a tu proyecto real de Supabase — cada registro se guarda de verdad</div>
+
+<div class="topbar">
+  <div class="evento">
+    <span class="label">EVENTO ACTIVO (real)</span>
+    <span class="nombre">Demo en vivo — Registro de asistencia</span>
+  </div>
+  <div class="meta">
+    <span>Proyecto: <span class="mono">Evidencias Dinámicas</span></span>
+  </div>
+</div>
+
+<div class="layout">
+
+  <div class="device">
+    <div class="device-bar"></div>
+    <div class="device-screen" id="screen"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">
+      <h3>Registros de esta sesión</h3>
+      <span class="count"><span id="countNum">0</span> confirmados</span>
+    </div>
+    <p class="panel-sub">Cada fila de aquí abajo corresponde a una respuesta real de la función <code>subir-evidencia</code> — el folio y el ID vienen directo de tu base de datos, no están inventados.</p>
+    <div class="log" id="log">
+      <div class="log-empty" id="logEmpty">Registra un asistente desde el dispositivo de la izquierda para ver aparecer aquí la confirmación real.</div>
+    </div>
+
+    <div class="info-box">
+      <b>Qué es real aquí:</b> todo el flujo de registro (datos, firma, foto, confirmación) llama a tu Edge Function <code>subir-evidencia</code> ya desplegada — guarda la firma y la foto en Storage, y crea las filas en <code>asistentes</code> y <code>evidencias</code> de verdad.<br><br>
+      <b>Qué falta por conectar:</b> "cerrar evento" y "generar PDF" requieren que un instructor/admin inicie sesión (Entra ID) — todavía no existe esa pantalla de login, así que esos dos pasos siguen sin construirse. Es el siguiente paso lógico.
+    </div>
+
+    <p class="foot-note">Puedes abrir esta misma página desde tu celular (compártetela por WhatsApp o súbela a algún hosting) para probar la cámara y la firma táctil de verdad.</p>
+  </div>
+
+</div>
+
+<script>
+// ---- Conexión real a tu proyecto Supabase ----
+const SUPABASE_URL = "https://wrhrqlnuiaowymyflpwn.supabase.co";
+const ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndyaHJxbG51aWFvd3lteWZscHduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0MjMzMTEsImV4cCI6MjEwNDk5OTMxMX0.SELZqmZUWjkFtXPtMqByvQSC_obKuTlwBeL1PN0GDpc";
+const EVENTO_TOKEN = "ogzBGlwGKEcc"; // token real del evento "Demo en vivo" creado para esta prueba
+
+const screen = document.getElementById('screen');
+const log = document.getElementById('log');
+const logEmpty = document.getElementById('logEmpty');
+const countNum = document.getElementById('countNum');
+
+let state = { nombre:'', empresa:'', puesto:'', correo:'', sigDataUrl:null, fotoDataUrl:null };
+let confirmedCount = 0;
+let camStream = null;
+
+function progressBar(activeIdx, total){
+  let html = '<div class="progress">';
+  for(let i=0;i<total;i++){ html += `<div class="seg"><i style="width:${i<=activeIdx?'100%':'0%'}"></i></div>`; }
+  html += '</div>';
+  return html;
+}
+
+function render(step){
+  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+
+  if(step === 'landing'){
+    screen.innerHTML = `
+      <div class="landing">
+        <div class="qr-box"></div>
+        <h2>Escanea para registrar tu asistencia</h2>
+        <p>O usa el enlace compartido en el chat de la reunión.<br>No necesitas cuenta ni contraseña.</p>
+        <button class="btn btn-primary" style="width:100%" onclick="render('datos')">Comenzar registro</button>
+      </div>`;
+    return;
+  }
+
+  if(step === 'datos'){
+    screen.innerHTML = `
+      <span class="step-label">PASO 1 DE 3</span>
+      <h2 class="step-title">Tus datos</h2>
+      ${progressBar(0,3)}
+      <div class="field"><label>Nombre completo</label><input id="f-nombre" placeholder="Ej. Ana López Ríos" value="${state.nombre}"></div>
+      <div class="field"><label>Empresa</label><input id="f-empresa" placeholder="Ej. PERENCO México" value="${state.empresa}"></div>
+      <div class="field"><label>Puesto</label><input id="f-puesto" placeholder="Ej. Supervisor de campo" value="${state.puesto}"></div>
+      <div class="field"><label>Correo electrónico</label><input id="f-correo" type="email" placeholder="nombre@empresa.com" value="${state.correo}"></div>
+      <div class="btn-row"><button class="btn btn-primary" style="width:100%" onclick="saveDatos()">Continuar</button></div>`;
+    return;
+  }
+
+  if(step === 'firma'){
+    screen.innerHTML = `
+      <span class="step-label">PASO 2 DE 3</span>
+      <h2 class="step-title">Firma digital</h2>
+      ${progressBar(1,3)}
+      <div class="sig-wrap"><canvas id="sigCanvas"></canvas><div class="sig-hint" id="sigHint">Firma aquí con el dedo o el mouse</div></div>
+      <button class="sig-clear" onclick="clearSig()">Limpiar firma</button>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="render('datos')">Atrás</button>
+        <button class="btn btn-primary" id="sigContinue" disabled onclick="render('foto')">Continuar</button>
+      </div>`;
+    setupSignature();
+    return;
+  }
+
+  if(step === 'foto'){
+    screen.innerHTML = `
+      <span class="step-label">PASO 3 DE 3</span>
+      <h2 class="step-title">Fotografía</h2>
+      ${progressBar(2,3)}
+      <div class="cam-wrap" id="camWrap"></div>
+      <p class="cam-note" id="camNote">Se usará solo como evidencia de asistencia para este evento.</p>
+      <div id="submitError"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="render('firma')">Atrás</button>
+        <button class="btn btn-primary" id="fotoContinue" disabled onclick="confirmarRegistro()">Confirmar asistencia</button>
+      </div>`;
+    setupCamera();
+    return;
+  }
+
+  if(step === 'confirm'){
+    screen.innerHTML = `
+      <div class="confirm-badge">✓</div>
+      <span class="confirm-real">Guardado en Supabase</span>
+      <h2 class="step-title" style="margin-bottom:4px;">Asistencia registrada</h2>
+      <p class="confirm-folio mono">Folio ${state.folio}</p>
+      <div class="confirm-card">
+        <img class="foto" src="${state.fotoDataUrl}" alt="">
+        <div class="info"><div class="nombre">${state.nombre}</div><div class="empresa">${state.empresa} · ${state.puesto}</div></div>
+      </div>
+      <div class="confirm-sig"><img src="${state.sigDataUrl}" alt="firma"></div>
+      <div class="btn-row"><button class="btn btn-primary" style="width:100%" onclick="nextAttendee()">Registrar siguiente asistente</button></div>`;
+    return;
+  }
+}
+
+function saveDatos(){
+  state.nombre = document.getElementById('f-nombre').value.trim();
+  state.empresa = document.getElementById('f-empresa').value.trim();
+  state.puesto = document.getElementById('f-puesto').value.trim();
+  state.correo = document.getElementById('f-correo').value.trim();
+  if(!state.nombre || !state.empresa || !state.correo){
+    alert('Completa al menos nombre, empresa y correo para continuar.');
+    return;
+  }
+  render('firma');
+}
+
+let sigCanvas, sigCtx, drawing=false, hasSig=false;
+function setupSignature(){
+  sigCanvas = document.getElementById('sigCanvas');
+  const ratio = window.devicePixelRatio || 1;
+  const rect = sigCanvas.getBoundingClientRect();
+  sigCanvas.width = rect.width * ratio;
+  sigCanvas.height = 190 * ratio;
+  sigCtx = sigCanvas.getContext('2d');
+  sigCtx.scale(ratio, ratio);
+  sigCtx.strokeStyle = '#12181B'; sigCtx.lineWidth = 2; sigCtx.lineCap = 'round';
+  hasSig = false;
+
+  const pos = (e)=>{ const r = sigCanvas.getBoundingClientRect(); const p = e.touches ? e.touches[0] : e; return { x: p.clientX - r.left, y: p.clientY - r.top }; };
+  const start = (e)=>{ drawing=true; const p=pos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x,p.y); e.preventDefault(); };
+  const move = (e)=>{
+    if(!drawing) return;
+    const p=pos(e); sigCtx.lineTo(p.x,p.y); sigCtx.stroke();
+    if(!hasSig){ hasSig=true; document.getElementById('sigHint').style.display='none'; document.getElementById('sigContinue').disabled=false; }
+    e.preventDefault();
+  };
+  const end = ()=>{ drawing=false; };
+  sigCanvas.addEventListener('mousedown', start);
+  sigCanvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  sigCanvas.addEventListener('touchstart', start, {passive:false});
+  sigCanvas.addEventListener('touchmove', move, {passive:false});
+  sigCanvas.addEventListener('touchend', end);
+}
+function clearSig(){
+  const rect = sigCanvas.getBoundingClientRect();
+  sigCtx.clearRect(0,0,rect.width,190);
+  hasSig = false;
+  document.getElementById('sigHint').style.display = 'block';
+  document.getElementById('sigContinue').disabled = true;
+}
+
+async function setupCamera(){
+  const wrap = document.getElementById('camWrap');
+  try{
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user' } });
+    const video = document.createElement('video');
+    video.autoplay = true; video.playsInline = true; video.muted = true;
+    video.srcObject = camStream;
+    wrap.innerHTML = '';
+    wrap.appendChild(video);
+    const shutter = document.createElement('div');
+    shutter.className = 'cam-shutter';
+    shutter.onclick = ()=>takePhoto(video);
+    wrap.appendChild(shutter);
+  }catch(err){
+    wrap.innerHTML = `<div class="cam-fallback">No se pudo acceder a la cámara (permiso denegado o no disponible).<br><br>
+      <span class="assisted-link" onclick="assistedFallback()">Usar registro asistido por el instructor →</span></div>`;
+  }
+}
+function takePhoto(video){
+  const c = document.createElement('canvas');
+  c.width = 480; c.height = 360;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(video, 0, 0, c.width, c.height);
+  state.fotoDataUrl = c.toDataURL('image/jpeg', 0.85);
+  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
+  const wrap = document.getElementById('camWrap');
+  wrap.innerHTML = `<img src="${state.fotoDataUrl}" alt="foto capturada">`;
+  document.getElementById('fotoContinue').disabled = false;
+  document.getElementById('camNote').innerHTML = 'Foto capturada. <span class="assisted-link" onclick="render(\'foto\')">Repetir foto</span>';
+}
+function assistedFallback(){
+  state.fotoDataUrl = "data:image/svg+xml;utf8," + encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><rect width='120' height='120' fill='%23E7E5DF'/><text x='60' y='66' font-size='13' text-anchor='middle' fill='%23888'>Sin foto</text></svg>`
+  );
+  state.registroAsistido = true;
+  document.getElementById('fotoContinue').disabled = false;
+  document.getElementById('camNote').innerText = 'Registrado como asistencia asistida por el instructor (sin foto).';
+}
+
+async function confirmarRegistro(){
+  const btn = document.getElementById('fotoContinue');
+  const errBox = document.getElementById('submitError');
+  errBox.innerHTML = '';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Guardando en Supabase…';
+
+  try{
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/subir-evidencia`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${ANON_KEY}`,
+        'apikey': ANON_KEY,
+      },
+      body: JSON.stringify({
+        token: EVENTO_TOKEN,
+        nombre: state.nombre,
+        empresa: state.empresa,
+        puesto: state.puesto,
+        correo: state.correo,
+        firma_base64: state.sigDataUrl || sigCanvas.toDataURL('image/png'),
+        foto_base64: state.registroAsistido ? null : state.fotoDataUrl,
+        registro_asistido: !!state.registroAsistido,
+      }),
+    });
+
+    const data = await resp.json();
+
+    if(!resp.ok){
+      throw new Error(data.error || 'Ocurrió un error al guardar el registro.');
+    }
+
+    state.sigDataUrl = sigCanvas.toDataURL('image/png');
+    state.folio = data.folio;
+    state.asistenteId = data.asistente_id;
+    confirmedCount++;
+    addToLog();
+    render('confirm');
+
+  }catch(err){
+    errBox.innerHTML = `<div class="error-box">${err.message}</div>`;
+    btn.disabled = false;
+    btn.textContent = 'Confirmar asistencia';
+  }
+}
+
+function addToLog(){
+  logEmpty.style.display = 'none';
+  const row = document.createElement('div');
+  row.className = 'log-row';
+  const now = new Date();
+  const hora = now.toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
+  row.innerHTML = `
+    <img src="${state.fotoDataUrl}" alt="">
+    <div class="info">
+      <div class="n">${state.nombre}</div>
+      <div class="e">${state.empresa} · <span class="mono">${state.folio}</span></div>
+    </div>
+    <div class="right"><div class="hora mono">${hora}</div><div class="ok">✓ en Supabase</div></div>`;
+  log.prepend(row);
+  countNum.textContent = confirmedCount;
+}
+
+function nextAttendee(){
+  state = { nombre:'', empresa:'', puesto:'', correo:'', sigDataUrl:null, fotoDataUrl:null };
+  render('landing');
+}
+
+render('landing');
+</script>
+
+</body>
+</html>
