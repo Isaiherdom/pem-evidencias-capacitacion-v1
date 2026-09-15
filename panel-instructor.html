@@ -156,7 +156,8 @@ async function renderPanel(){
     if(ev.estado === 'abierto'){
       accion = `<button class="btn btn-primary" onclick="cerrarYGenerar('${ev.id}')">Cerrar evento y generar PDF</button>`;
     } else if(reporte && reporte.estado === 'listo'){
-      accion = `<a class="pdf-ready" href="#" onclick="descargarPdf('${reporte.storage_path}'); return false;">Descargar PDF</a>`;
+      accion = `<a class="pdf-ready" href="#" onclick="descargarPdf('${reporte.storage_path}'); return false;">Descargar PDF</a>
+        <button class="btn btn-ghost" style="margin-left:8px" onclick="generarPdf('${ev.id}')">Regenerar</button>`;
     } else if(reporte && reporte.estado === 'procesando'){
       accion = `<span class="status-line">Generando PDF…</span>`;
     } else if(reporte && reporte.estado === 'error'){
