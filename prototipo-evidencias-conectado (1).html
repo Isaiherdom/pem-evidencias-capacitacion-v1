@@ -41,6 +41,16 @@
   .step-title{font-size:19px; font-weight:700; margin:0 0 18px;}
 
   .field{margin-bottom:14px;}
+
+  .aviso-box{
+    background:#FBFBFA; border:1px solid var(--line); border-radius:10px; padding:14px;
+    font-size:11.5px; color:var(--ink-soft); line-height:1.6; max-height:220px; overflow-y:auto; margin-bottom:16px;
+  }
+  .aviso-box strong{color:var(--ink);}
+  .check-row{
+    display:flex; align-items:flex-start; gap:10px; font-size:12.5px; color:var(--ink); line-height:1.4; cursor:pointer;
+  }
+  .check-row input{margin-top:2px; flex-shrink:0;}
   .field label{display:block; font-size:12.5px; font-weight:600; color:var(--ink-soft); margin-bottom:5px;}
   .field input{ width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:8px; font-family:inherit; font-size:14.5px; background:#FBFBFA; color:var(--ink); }
   .field input:focus{outline:none; border-color:var(--amber); background:#fff;}
@@ -199,9 +209,9 @@ function render(step){
 
   if(step === 'datos'){
     screen.innerHTML = `
-      <span class="step-label">PASO 1 DE 3</span>
+      <span class="step-label">PASO 1 DE 4</span>
       <h2 class="step-title">Tus datos</h2>
-      ${progressBar(0,3)}
+      ${progressBar(0,4)}
       <div class="field"><label>Nombre completo</label><input id="f-nombre" placeholder="Ej. Ana López Ríos" value="${state.nombre}"></div>
       <div class="field"><label>Empresa</label><input id="f-empresa" placeholder="Ej. PERENCO México" value="${state.empresa}"></div>
       <div class="field"><label>Puesto</label><input id="f-puesto" placeholder="Ej. Supervisor de campo" value="${state.puesto}"></div>
@@ -210,15 +220,38 @@ function render(step){
     return;
   }
 
+  if(step === 'aviso'){
+    screen.innerHTML = `
+      <span class="step-label">PASO 2 DE 4</span>
+      <h2 class="step-title">Aviso de privacidad</h2>
+      ${progressBar(1,4)}
+      <div class="aviso-box">
+        <p><strong>Production Enhancement México S. de R.L. de C.V.</strong> (PEM) recaba tu nombre, empresa, puesto, correo, fotografía y firma
+        con la única finalidad de generar la evidencia de tu asistencia a esta capacitación, incluyendo su uso para constancias (DC-3) y
+        auditorías de nuestros clientes.</p>
+        <p>Tus datos se almacenan de forma segura y no se comparten con terceros distintos a los necesarios para estos fines. Puedes ejercer
+        tus derechos de acceso, rectificación, cancelación u oposición (ARCO) escribiendo a tu contacto de Recursos Humanos o Calidad en PEM.</p>
+      </div>
+      <label class="check-row">
+        <input type="checkbox" id="aviso-check" ${state.avisoAceptado ? 'checked' : ''} onchange="document.getElementById('avisoContinue').disabled = !this.checked">
+        <span>He leído y acepto el tratamiento de mis datos personales para este fin.</span>
+      </label>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="render('datos')">Atrás</button>
+        <button class="btn btn-primary" id="avisoContinue" ${state.avisoAceptado ? '' : 'disabled'} onclick="aceptarAviso()">Continuar</button>
+      </div>`;
+    return;
+  }
+
   if(step === 'firma'){
     screen.innerHTML = `
-      <span class="step-label">PASO 2 DE 3</span>
+      <span class="step-label">PASO 3 DE 4</span>
       <h2 class="step-title">Firma digital</h2>
-      ${progressBar(1,3)}
+      ${progressBar(2,4)}
       <div class="sig-wrap"><canvas id="sigCanvas"></canvas><div class="sig-hint" id="sigHint">Firma aquí con el dedo o el mouse</div></div>
       <button class="sig-clear" onclick="clearSig()">Limpiar firma</button>
       <div class="btn-row">
-        <button class="btn btn-ghost" onclick="render('datos')">Atrás</button>
+        <button class="btn btn-ghost" onclick="render('aviso')">Atrás</button>
         <button class="btn btn-primary" id="sigContinue" disabled onclick="render('foto')">Continuar</button>
       </div>`;
     setupSignature();
@@ -227,9 +260,9 @@ function render(step){
 
   if(step === 'foto'){
     screen.innerHTML = `
-      <span class="step-label">PASO 3 DE 3</span>
+      <span class="step-label">PASO 4 DE 4</span>
       <h2 class="step-title">Fotografía</h2>
-      ${progressBar(2,3)}
+      ${progressBar(3,4)}
       <div class="cam-wrap" id="camWrap"></div>
       <p class="cam-note" id="camNote">Se usará solo como evidencia de asistencia para este evento.</p>
       <div id="submitError"></div>
@@ -266,8 +299,12 @@ function saveDatos(){
     alert('Completa al menos nombre, empresa y correo para continuar.');
     return;
   }
-  render('firma');
+  render('aviso');
 }
+
+function aceptarAviso(){
+  state.avisoAceptado = true;
+  render('firma');
 
 let sigCanvas, sigCtx, drawing=false, hasSig=false;
 function setupSignature(){
