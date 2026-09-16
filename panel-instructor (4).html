@@ -88,6 +88,10 @@
     font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:var(--ink-soft);
   }
   .link-toggle{ font-size:12.5px; color:var(--teal); text-decoration:underline; cursor:pointer; background:none; border:none; padding:0; font-family:inherit; }
+  .sig-wrap{ border:1px dashed var(--line); border-radius:8px; background:#FBFBFA; position:relative; touch-action:none; margin-top:4px; }
+  .sig-wrap canvas{ display:block; width:100%; height:100px; border-radius:8px; }
+  .sig-hint{ position:absolute; bottom:6px; left:0; right:0; text-align:center; font-size:11px; color:#A7ACA7; pointer-events:none; }
+  .sig-clear{ margin-top:6px; font-size:11.5px; color:var(--ink-soft); background:none; border:none; text-decoration:underline; cursor:pointer; padding:0; }
   .btn-delete{
     background:none; border:1px solid var(--line); border-radius:7px; width:34px; height:34px;
     font-size:14px; cursor:pointer; color:var(--ink-soft); flex-shrink:0;
@@ -193,20 +197,33 @@ async function renderPanel(){
           <label>Tipo</label>
           <select id="nf-tipo">
             <option value="presencial">Presencial</option>
-            <option value="teams">Reunión Teams</option>
+            <option value="teams">Reunión virtual</option>
           </select>
         </div>
         <div>
           <label>Fecha</label>
           <input id="nf-fecha" type="date">
         </div>
-        <div style="display:flex; align-items:flex-end;">
+        <div>
+          <label>Tu cargo</label>
+          <input id="nf-cargo" placeholder="Ej. Gerente Sistemas de Gestión">
+        </div>
+        <div class="full">
+          <label>Tu firma como responsable</label>
+          <div class="sig-wrap">
+            <canvas id="nfSigCanvas"></canvas>
+            <div class="sig-hint" id="nfSigHint">Firma aquí con el dedo o el mouse</div>
+          </div>
+          <button class="sig-clear" onclick="limpiarFirmaEvento()">Limpiar firma</button>
+        </div>
+        <div class="full" style="display:flex; align-items:flex-end;">
           <button class="btn btn-primary" style="width:100%" onclick="crearEvento()">Crear evento</button>
         </div>
       </div>
       <div id="createError"></div>
       <div id="createResult"></div>`;
     document.getElementById('nf-fecha').value = new Date().toISOString().slice(0,10);
+    setupFirmaEvento();
   }
 
   await cargarEventos();
@@ -254,7 +271,7 @@ async function cargarEventos(){
         <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
           <div class="info">
             <div class="nombre">${ev.nombre}</div>
-            <div class="meta">${ev.tipo === 'teams' ? 'Reunión Teams' : 'Presencial'} · ${ev.fecha} ·
+            <div class="meta">${ev.tipo === 'teams' ? 'Reunión virtual' : 'Presencial'} · ${ev.fecha} ·
               <span class="badge ${ev.estado === 'abierto' ? 'badge-abierto' : 'badge-cerrado'}">${ev.estado}</span>
             </div>
           </div>
@@ -296,6 +313,12 @@ function copiarLink(eventoId){
 async function eliminarEvento(eventoId, nombre){
   if(!confirm(`¿Eliminar "${nombre}"? Esto borra el evento, sus asistentes, firmas, fotos y el PDF de forma permanente. No se puede deshacer.`)) return;
 
+  const { data: eventoRow } = await supa
+    .from('eventos')
+    .select('responsable_firma_path')
+    .eq('id', eventoId)
+    .maybeSingle();
+
   const { data: asistentes } = await supa
     .from('asistentes')
     .select('evidencias(firma_path, foto_path)')
@@ -307,6 +330,7 @@ async function eliminarEvento(eventoId, nombre){
     if(ev?.firma_path) paths.push(ev.firma_path);
     if(ev?.foto_path) paths.push(ev.foto_path);
   });
+  if(eventoRow?.responsable_firma_path) paths.push(eventoRow.responsable_firma_path);
   paths.push(`reportes/${eventoId}.pdf`);
 
   if(paths.length) await supa.storage.from('evidencias').remove(paths);
@@ -317,16 +341,65 @@ async function eliminarEvento(eventoId, nombre){
   await cargarEventos();
 }
 
+let nfSigCanvas, nfSigCtx, nfDrawing=false, nfHasSig=false;
+function setupFirmaEvento(){
+  nfSigCanvas = document.getElementById('nfSigCanvas');
+  const ratio = window.devicePixelRatio || 1;
+  const rect = nfSigCanvas.getBoundingClientRect();
+  nfSigCanvas.width = rect.width * ratio;
+  nfSigCanvas.height = 100 * ratio;
+  nfSigCtx = nfSigCanvas.getContext('2d');
+  nfSigCtx.scale(ratio, ratio);
+  nfSigCtx.strokeStyle = '#12181B';
+  nfSigCtx.lineWidth = 2;
+  nfSigCtx.lineCap = 'round';
+  nfHasSig = false;
+
+  const pos = (e)=>{ const r = nfSigCanvas.getBoundingClientRect(); const p = e.touches ? e.touches[0] : e; return { x: p.clientX - r.left, y: p.clientY - r.top }; };
+  const start = (e)=>{ nfDrawing=true; const p=pos(e); nfSigCtx.beginPath(); nfSigCtx.moveTo(p.x,p.y); e.preventDefault(); };
+  const move = (e)=>{
+    if(!nfDrawing) return;
+    const p=pos(e); nfSigCtx.lineTo(p.x,p.y); nfSigCtx.stroke();
+    if(!nfHasSig){ nfHasSig=true; document.getElementById('nfSigHint').style.display='none'; }
+    e.preventDefault();
+  };
+  const end = ()=>{ nfDrawing=false; };
+  nfSigCanvas.addEventListener('mousedown', start);
+  nfSigCanvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  nfSigCanvas.addEventListener('touchstart', start, {passive:false});
+  nfSigCanvas.addEventListener('touchmove', move, {passive:false});
+  nfSigCanvas.addEventListener('touchend', end);
+}
+function limpiarFirmaEvento(){
+  const rect = nfSigCanvas.getBoundingClientRect();
+  nfSigCtx.clearRect(0,0,rect.width,100);
+  nfHasSig = false;
+  document.getElementById('nfSigHint').style.display = 'block';
+}
+
 async function crearEvento(){
   const nombre = document.getElementById('nf-nombre').value.trim();
   const tipo = document.getElementById('nf-tipo').value;
   const fecha = document.getElementById('nf-fecha').value;
+  const cargo = document.getElementById('nf-cargo').value.trim();
   const errBox = document.getElementById('createError');
   errBox.innerHTML = '';
 
   if(!nombre || !fecha){
     errBox.innerHTML = `<div class="error-box">Ponle nombre y fecha al evento.</div>`;
     return;
+  }
+
+  let firmaPath = null;
+  if(nfHasSig){
+    const blob = await new Promise(res => nfSigCanvas.toBlob(res, 'image/png'));
+    firmaPath = `responsables/${crypto.randomUUID()}-firma.png`;
+    const { error: upErr } = await supa.storage.from('evidencias').upload(firmaPath, blob, { contentType: 'image/png' });
+    if(upErr){
+      errBox.innerHTML = `<div class="error-box">No se pudo guardar tu firma: ${upErr.message}</div>`;
+      return;
+    }
   }
 
   const { data, error } = await supa
@@ -336,6 +409,8 @@ async function crearEvento(){
       nombre, tipo, fecha,
       instructor_id: session.user.id,
       creado_por: session.user.id,
+      responsable_cargo: cargo || null,
+      responsable_firma_path: firmaPath,
     })
     .select('id, nombre, token_acceso')
     .single();

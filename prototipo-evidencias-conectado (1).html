@@ -215,6 +215,8 @@ function render(step){
       <div class="field"><label>Nombre completo</label><input id="f-nombre" placeholder="Ej. Ana López Ríos" value="${state.nombre}"></div>
       <div class="field"><label>Empresa</label><input id="f-empresa" placeholder="Ej. PERENCO México" value="${state.empresa}"></div>
       <div class="field"><label>Puesto</label><input id="f-puesto" placeholder="Ej. Supervisor de campo" value="${state.puesto}"></div>
+      <div class="field"><label>Línea de servicio (opcional)</label><input id="f-linea" placeholder="Ej. Compresión" value="${state.lineaServicio || ''}"></div>
+      <div class="field"><label>Locación (opcional)</label><input id="f-locacion" placeholder="Ej. Base Reynosa" value="${state.locacion || ''}"></div>
       <div class="field"><label>Correo electrónico</label><input id="f-correo" type="email" placeholder="nombre@empresa.com" value="${state.correo}"></div>
       <div class="btn-row"><button class="btn btn-primary" style="width:100%" onclick="saveDatos()">Continuar</button></div>`;
     return;
@@ -294,6 +296,8 @@ function saveDatos(){
   state.nombre = document.getElementById('f-nombre').value.trim();
   state.empresa = document.getElementById('f-empresa').value.trim();
   state.puesto = document.getElementById('f-puesto').value.trim();
+  state.lineaServicio = document.getElementById('f-linea').value.trim();
+  state.locacion = document.getElementById('f-locacion').value.trim();
   state.correo = document.getElementById('f-correo').value.trim();
   if(!state.nombre || !state.empresa || !state.correo){
     alert('Completa al menos nombre, empresa y correo para continuar.');
@@ -402,6 +406,8 @@ async function confirmarRegistro(){
         nombre: state.nombre,
         empresa: state.empresa,
         puesto: state.puesto,
+        linea_servicio: state.lineaServicio,
+        locacion: state.locacion,
         correo: state.correo,
         firma_base64: state.sigDataUrl || sigCanvas.toDataURL('image/png'),
         foto_base64: state.registroAsistido ? null : state.fotoDataUrl,
