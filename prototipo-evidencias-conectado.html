@@ -199,9 +199,8 @@ function render(step){
   if(step === 'landing'){
     screen.innerHTML = `
       <div class="landing">
-        <div class="qr-box"></div>
-        <h2>Escanea para registrar tu asistencia</h2>
-        <p>O usa el enlace compartido en el chat de la reunión.<br>No necesitas cuenta ni contraseña.</p>
+        <h2>Registro de asistencia</h2>
+        <p>No necesitas cuenta ni contraseña — solo tus datos, tu firma y una foto.</p>
         <button class="btn btn-primary" style="width:100%" onclick="render('datos')">Comenzar registro</button>
       </div>`;
     return;
