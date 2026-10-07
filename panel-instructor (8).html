@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
   :root{
     --ink:#12181B; --ink-soft:#4A555B; --paper:#EFF1EE; --panel:#FFFFFF; --line:#D9DCD6;
@@ -81,7 +81,7 @@
     margin-top:14px; padding-top:14px; border-top:1px solid var(--line);
     display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;
   }
-  .link-box canvas{ border:1px solid var(--line); border-radius:8px; }
+  .link-box canvas, .qr-box{ border:1px solid var(--line); border-radius:8px; display:inline-block; }
   .link-box .urlrow{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
   .link-box input.urlfield{
     flex:1; min-width:220px; padding:8px 10px; border:1px solid var(--line); border-radius:7px; background:#FBFBFA;
@@ -299,9 +299,9 @@ function toggleQr(eventoId, token){
         </div>
         <p class="status-line">Comparte este link o el QR con los asistentes — no necesitan cuenta.</p>
       </div>
-      <canvas id="qrcanvas-${eventoId}"></canvas>
+      <div id="qrcanvas-${eventoId}" class="qr-box"></div>
     </div>`;
-  QRCode.toCanvas(document.getElementById(`qrcanvas-${eventoId}`), url, { width: 130, margin: 1 });
+  new QRCode(document.getElementById(`qrcanvas-${eventoId}`), { text: url, width: 130, height: 130 });
 }
 
 function copiarLink(eventoId){
@@ -432,9 +432,9 @@ async function crearEvento(){
           <button class="btn btn-ghost" onclick="document.getElementById('newlink').select(); navigator.clipboard.writeText('${url}')">Copiar</button>
         </div>
       </div>
-      <canvas id="newqr"></canvas>
+      <div id="newqr" class="qr-box"></div>
     </div>`;
-  QRCode.toCanvas(document.getElementById('newqr'), url, { width: 130, margin: 1 });
+  new QRCode(document.getElementById('newqr'), { text: url, width: 130, height: 130 });
 
   await cargarEventos();
 }
