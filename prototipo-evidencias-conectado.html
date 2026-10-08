@@ -215,7 +215,7 @@ function render(step){
       <div class="field"><label>Empresa</label><input id="f-empresa" placeholder="Ej. PERENCO México" value="${state.empresa}"></div>
       <div class="field"><label>Puesto</label><input id="f-puesto" placeholder="Ej. Supervisor de campo" value="${state.puesto}"></div>
       <div class="field"><label>Línea de servicio (opcional)</label><input id="f-linea" placeholder="Ej. Compresión" value="${state.lineaServicio || ''}"></div>
-      <div class="field"><label>Locación (opcional)</label><input id="f-locacion" placeholder="Ej. Base Reynosa" value="${state.locacion || ''}"></div>
+      <div class="field"><label>Locación</label><input id="f-locacion" placeholder="Ej. Base Reynosa" value="${state.locacion || ''}"></div>
       <div class="field"><label>Correo electrónico</label><input id="f-correo" type="email" placeholder="nombre@empresa.com" value="${state.correo}"></div>
       <div class="btn-row"><button class="btn btn-primary" style="width:100%" onclick="saveDatos()">Continuar</button></div>`;
     return;
@@ -298,8 +298,8 @@ function saveDatos(){
   state.lineaServicio = document.getElementById('f-linea').value.trim();
   state.locacion = document.getElementById('f-locacion').value.trim();
   state.correo = document.getElementById('f-correo').value.trim();
-  if(!state.nombre || !state.empresa || !state.correo){
-    alert('Completa al menos nombre, empresa y correo para continuar.');
+  if(!state.nombre || !state.empresa || !state.locacion || !state.correo){
+    alert('Completa nombre, empresa, locación y correo para continuar.');
     return;
   }
   render('aviso');
